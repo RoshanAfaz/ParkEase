@@ -3,18 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, DollarSign, AlertCircle } from 'lucide-react';
 import { api, ParkingLot, ParkingSlot, Vehicle } from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import ParkingSlotGrid from '../components/ParkingSlotGrid';
+import Modal from '../components/Modal';
+import PaymentForm from '../components/PaymentForm';
 import { formatIndianCurrency, formatIndianCurrencyWhole, validateIndianVehicleNumber, formatIndianVehicleNumber, getVehicleNumberPlaceholder } from '../utils/indianFormat';
 
 export default function Booking() {
   const { lotId } = useParams();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  // const { user } = useAuth(); // Unused
   const [lot, setLot] = useState<ParkingLot | null>(null);
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export default function Booking() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
   const loadParkingData = useCallback(async () => {
     try {
@@ -43,7 +47,7 @@ export default function Booking() {
       // Load available slots
       const slotsData = await api.getParkingSlots(lotId);
       // Sort by slot number
-      const sortedSlots = slotsData.sort((a, b) => 
+      const sortedSlots = slotsData.sort((a, b) =>
         a.slot_number.localeCompare(b.slot_number, undefined, { numeric: true })
       );
       setSlots(sortedSlots);
@@ -83,34 +87,35 @@ export default function Booking() {
     return hours > 0 ? hours * lot.price_per_hour : 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const initPayment = async () => {
     setError('');
 
     if (!selectedSlot) {
+      alert('Please select a parking slot');
       setError('Please select a parking slot');
       return;
     }
 
     if (!startTime || !endTime) {
+      alert('Please select Start and End time');
       setError('Please fill in all fields');
       return;
     }
 
     // Check if we need to create a new vehicle or use existing
-    let vehicleId = selectedVehicle;
     if (selectedVehicle === 'new') {
       if (!newVehiclePlate) {
+        alert('Please enter vehicle registration number');
         setError('Please enter vehicle registration number');
         return;
       }
-      // Validate Indian vehicle number format
       if (!validateIndianVehicleNumber(newVehiclePlate)) {
+        alert('Invalid Vehicle Format. Use: MH-12-AB-1234');
         setError('Please enter a valid Indian vehicle registration number (e.g., MH-12-AB-1234)');
         return;
       }
-      // We'll create the vehicle during booking
-    } else if (!vehicleId) {
+    } else if (!selectedVehicle) {
+      alert('Please select a vehicle');
       setError('Please select a vehicle');
       return;
     }
@@ -119,13 +124,25 @@ export default function Booking() {
     const end = new Date(endTime);
 
     if (end <= start) {
+      alert('End time must be after start time');
       setError('End time must be after start time');
       return;
     }
 
+    // Initialize payment
+    const price = calculatePrice();
+    // alert('Debug: Price is ' + price);
+    setPaymentAmount(price);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = async (_paymentIntentId: string) => {
     setSubmitting(true);
+    setShowPaymentModal(false); // Close modal while processing booking
 
     try {
+      let vehicleId = selectedVehicle;
+
       // Create new vehicle if needed
       if (selectedVehicle === 'new') {
         const formattedPlate = formatIndianVehicleNumber(newVehiclePlate);
@@ -141,27 +158,32 @@ export default function Booking() {
       // Create booking
       await api.createBooking({
         lot_id: lotId!,
-        slot_id: selectedSlot,
+        slot_id: selectedSlot!,
         vehicle_id: vehicleId,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        start_time: new Date(startTime).toISOString(),
+        end_time: new Date(endTime).toISOString(),
       });
 
       navigate('/my-bookings');
     } catch (error) {
       console.error('Error creating booking:', error);
-      setError('Failed to create booking. Please try again.');
+      setError('Payment successful but booking failed. Please contact support.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handlePaymentError = (errorMessage: string) => {
+    setError(errorMessage);
+    setShowPaymentModal(false);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-slate-600">Loading...</p>
+          <p className="text-center text-slate-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -169,12 +191,12 @@ export default function Booking() {
 
   if (!lot) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <Card className="p-12 text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Parking Lot Not Found</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Parking Lot Not Found</h2>
             <Button onClick={() => navigate('/find-parking')}>Back to Search</Button>
           </Card>
         </div>
@@ -183,7 +205,7 @@ export default function Booking() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -192,8 +214,8 @@ export default function Booking() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">{lot.name}</h1>
-          <div className="flex items-center space-x-2 text-slate-600">
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">{lot.name}</h1>
+          <div className="flex items-center space-x-2 text-slate-600 dark:text-gray-400">
             <MapPin className="h-5 w-5" />
             <span>{lot.address}</span>
           </div>
@@ -208,7 +230,7 @@ export default function Booking() {
             >
               <Card className="p-6 mb-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-slate-900">Select a Parking Slot</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Select a Parking Slot</h2>
                   <span className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-600">
                     VIP Slot
                   </span>
@@ -231,7 +253,7 @@ export default function Booking() {
               className="sticky top-24"
             >
               <Card className="p-6">
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Booking Details</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Booking Details</h2>
 
                 {error && (
                   <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start space-x-3">
@@ -240,16 +262,15 @@ export default function Booking() {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-gray-300 mb-2">
                       Select Vehicle
                     </label>
                     <select
                       value={selectedVehicle}
                       onChange={(e) => setSelectedVehicle(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                      required
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     >
                       {vehicles.length === 0 && (
                         <option value="">No vehicles found</option>
@@ -290,13 +311,13 @@ export default function Booking() {
                     required
                   />
 
-                  <div className="pt-4 border-t border-slate-200">
+                  <div className="pt-4 border-t border-slate-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-600">Price per hour:</span>
-                      <span className="font-semibold text-slate-900">{formatIndianCurrencyWhole(lot.price_per_hour)}</span>
+                      <span className="text-sm text-slate-600 dark:text-gray-400">Price per hour:</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{formatIndianCurrencyWhole(lot.price_per_hour)}</span>
                     </div>
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-lg font-semibold text-slate-900">Total:</span>
+                      <span className="text-lg font-semibold text-slate-900 dark:text-white">Total:</span>
                       <span className="text-2xl font-bold text-blue-600">
                         {formatIndianCurrency(calculatePrice())}
                       </span>
@@ -304,21 +325,20 @@ export default function Booking() {
                   </div>
 
                   <Button
-                    type="submit"
+                    onClick={initPayment}
                     fullWidth
                     loading={submitting}
-                    disabled={!selectedSlot}
                   >
-                    Confirm Booking
+                    Proceed to Payment
                   </Button>
-                </form>
+                </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-200 space-y-3">
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-gray-700 space-y-3">
+                  <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-gray-400">
                     <Clock className="h-4 w-4" />
                     <span>{lot.operating_hours}</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <div className="flex items-center space-x-2 text-sm text-slate-600 dark:text-gray-400">
                     <DollarSign className="h-4 w-4" />
                     <span>${lot.price_per_hour}/hour</span>
                   </div>
@@ -328,6 +348,21 @@ export default function Booking() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        title="Payment"
+        size="md"
+      >
+        <div className="p-6">
+          <PaymentForm
+            amount={paymentAmount}
+            onSuccess={handlePaymentSuccess}
+            onError={handlePaymentError}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { Car, LogOut, User, LayoutDashboard, MapPin, Calendar, Settings, Users, 
 import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
+import { ThemeToggle } from './ThemeToggle';
+
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const location = useLocation();
@@ -41,7 +43,7 @@ export default function Navbar() {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm"
+      className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -68,11 +70,10 @@ export default function Navbar() {
                       <motion.div
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200 ${
-                          isActive(link.path)
-                            ? 'bg-blue-50 text-blue-700 font-semibold'
-                            : 'text-slate-600 hover:bg-slate-50'
-                        }`}
+                        className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200 ${isActive(link.path)
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50'
+                          }`}
                       >
                         <Icon className="h-4 w-4" />
                         <span className="text-sm">{link.label}</span>
@@ -83,9 +84,10 @@ export default function Navbar() {
               </div>
 
               <div className="flex items-center space-x-3">
-                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-slate-50 rounded-lg">
-                  <User className="h-4 w-4 text-slate-600" />
-                  <span className="text-sm font-medium text-slate-700">{user?.full_name}</span>
+                <ThemeToggle />
+                <div className="hidden sm:flex items-center space-x-2 px-3 py-2 bg-slate-50 dark:bg-gray-700 rounded-lg">
+                  <User className="h-4 w-4 text-slate-600 dark:text-gray-300" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-gray-200">{user?.full_name}</span>
                   {user?.role === 'admin' && (
                     <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
                       ADMIN
@@ -106,6 +108,6 @@ export default function Navbar() {
           )}
         </div>
       </div>
-    </motion.nav>
+    </motion.nav >
   );
 }

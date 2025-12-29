@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Car, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
 import Button from '../components/Button';
 import Input from '../components/Input';
 
@@ -11,7 +12,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, profile } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -21,7 +22,46 @@ export default function Login() {
 
     try {
       await signIn(email, password);
+      // user might not be updated immediately after signIn await, depending on implementation
+      // but api.login updates token, and then loadProfile is called.
+      // However, we can just navigate based on the anticipated role or let the dashboard redirect.
+      // Better to check the user object if available, OR just navigate to dashboard and let protected route handle it.
+      // The original code checked profile?.role.
+      // Let's assume we can navigate to dashboard general.
+      // Or we can fetch user profile again?
+      // Actually, signIn in AuthContext calls loadProfile.
+
+      // Let's rely on dashboard redirection?
+      // Re-reading Login.tsx original logic:
+      /*
       if (profile?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+      */
+      // Since 'user' from useAuth might be stale right after signIn function returns (if signIn doesn't return the user), 
+      // we should look at how signIn is implemented.
+      // signIn calls api.login then loadProfile. loadProfile updates state.
+      // State update might not be reflected immediately in 'user' variable in this render cycle.
+
+      // However, let's just change 'profile' to 'user' for now to fix the type error.
+      // If logic is flawed due to closure/stale state, that's a runtime issue, but type error is compile time.
+
+      // Wait, if I change 'profile' to 'user', typescript will be happy.
+      // Runtime: 'user' might be null initially.
+      // But we are in an async function.
+      // The 'user' variable from useAuth hook will NOT change in the middle of this function execution.
+      // Use api.getCurrentUser() or similar?
+      // Or just navigate to '/' and let it redirect?
+
+      // For now, I will change profile to user. The user object has role.
+      // But wait, if 'user' is null from the hook (initial state), it stays null in this function scope.
+      // So 'user?.role' will be undefined.
+      // We should probably just navigate to '/dashboard' and let the dashboard redirect admins?
+      // Or fetch the user manually:
+      const currentUser = await api.getCurrentUser();
+      if (currentUser.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');

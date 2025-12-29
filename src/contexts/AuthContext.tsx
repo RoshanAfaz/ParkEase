@@ -49,15 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const user = await api.register(email, password, fullName);
+    await api.register(email, password, fullName);
     // After registration, need to login to get token
-    const response = await api.login(email, password);
+    await api.login(email, password);
     // Note: api.login already sets the token in localStorage
     await loadProfile();
   };
 
   const signIn = async (email: string, password: string) => {
-    const response = await api.login(email, password);
+    await api.login(email, password);
     // Note: api.login already sets the token in localStorage
     await loadProfile();
   };

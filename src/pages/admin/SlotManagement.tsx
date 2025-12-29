@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Car, Plus, Edit, Trash2, Grid, List, Filter } from 'lucide-react';
+import { Car, Plus, Edit, Trash2, Grid, List } from 'lucide-react';
 import { api, ParkingLot, ParkingSlot } from '../../lib/api';
 import Card from '../../components/Card';
 import Navbar from '../../components/Navbar';
@@ -249,22 +249,20 @@ export default function SlotManagement() {
               <div className="flex space-x-2">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                    viewMode === 'grid'
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'grid'
                       ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
+                    }`}
                 >
                   <Grid className="h-4 w-4" />
                   <span>Grid</span>
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                    viewMode === 'list'
+                  className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${viewMode === 'list'
                       ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                  }`}
+                    }`}
                 >
                   <List className="h-4 w-4" />
                   <span>List</span>
@@ -297,10 +295,10 @@ export default function SlotManagement() {
                   <p className="text-2xl font-bold text-blue-600">
                     {selectedLotData.total_slots > 0
                       ? Math.round(
-                          ((selectedLotData.total_slots - selectedLotData.available_slots) /
-                            selectedLotData.total_slots) *
-                            100
-                        )
+                        ((selectedLotData.total_slots - selectedLotData.available_slots) /
+                          selectedLotData.total_slots) *
+                        100
+                      )
                       : 0}
                     %
                   </p>

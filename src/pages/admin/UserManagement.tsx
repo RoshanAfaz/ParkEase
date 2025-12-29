@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Search, Plus, Edit, Trash2, Eye, UserPlus, Shield, User as UserIcon } from 'lucide-react';
-import { api } from '../../lib/api';
+import { Users, Search, Plus, Edit, Trash2, Eye, UserPlus, Shield, User as UserIcon, CheckCircle, XCircle } from 'lucide-react';
+import { api, User } from '../../lib/api';
 import Card from '../../components/Card';
 import Navbar from '../../components/Navbar';
 import { formatIndianCurrency } from '../../utils/indianFormat';
-
-interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  phone?: string;
-  role: string;
-  created_at: string;
-}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -97,6 +88,15 @@ export default function UserManagement() {
       loadUsers();
     } catch (error: any) {
       alert(error.message || 'Failed to delete user');
+    }
+  };
+
+  const handleVerifyUser = async (userId: string, currentStatus: boolean) => {
+    try {
+      await api.verifyUser(userId, !currentStatus);
+      loadUsers();
+    } catch (error: any) {
+      alert(error.message || 'Failed to update verification status');
     }
   };
 
@@ -194,7 +194,7 @@ export default function UserManagement() {
                       Email
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                      Phone
+                      Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Role
@@ -217,22 +217,32 @@ export default function UserManagement() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-semibold text-slate-900">{user.full_name}</div>
+                            <div className="text-xs text-slate-500">{user.phone || '-'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         {user.email}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                        {user.phone || '-'}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {user.is_verified ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Verified</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
+                            <XCircle className="h-3 w-3" />
+                            <span>Unverified</span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            user.role === 'admin'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
+                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${user.role === 'admin'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                            }`}
                         >
                           {user.role === 'admin' ? (
                             <Shield className="h-3 w-3" />
@@ -247,6 +257,13 @@ export default function UserManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleVerifyUser(user.id, user.is_verified)}
+                            className={`${user.is_verified ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-50' : 'text-green-600 hover:text-green-900 hover:bg-green-50'} p-1 rounded`}
+                            title={user.is_verified ? "Unverify User" : "Verify User"}
+                          >
+                            {user.is_verified ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                          </button>
                           <button
                             onClick={() => handleViewDetails(user.id)}
                             className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
@@ -492,6 +509,12 @@ export default function UserManagement() {
                     <div>
                       <p className="text-sm text-slate-600">Role</p>
                       <p className="font-semibold text-slate-900 capitalize">{selectedUser.role}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">Verified</p>
+                      <p className={`font-semibold ${selectedUser.is_verified ? 'text-green-600' : 'text-slate-500'}`}>
+                        {selectedUser.is_verified ? 'Yes' : 'No'}
+                      </p>
                     </div>
                   </div>
                 </div>

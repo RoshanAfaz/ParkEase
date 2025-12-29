@@ -10,7 +10,7 @@ import Navbar from '../components/Navbar';
 import { formatIndianCurrency } from '../utils/indianFormat';
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState({
     activeBookings: 0,
@@ -23,7 +23,7 @@ export default function Dashboard() {
     try {
       // Load user stats from analytics endpoint
       const userStats = await api.getUserStats();
-      
+
       setStats({
         activeBookings: userStats.active_bookings,
         completedBookings: userStats.total_bookings - userStats.active_bookings,
@@ -32,12 +32,12 @@ export default function Dashboard() {
 
       // Load recent bookings
       const bookingsData = await api.getBookings();
-      
+
       // Sort by created_at and take first 5
-      const sortedBookings = bookingsData.sort((a, b) => 
+      const sortedBookings = bookingsData.sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ).slice(0, 5);
-      
+
       setBookings(sortedBookings);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -87,7 +87,7 @@ export default function Dashboard() {
           className="mb-8"
         >
           <h1 className="text-4xl font-bold text-slate-900 mb-2">
-            Welcome back, {profile?.full_name}!
+            Welcome back, {user?.full_name}!
           </h1>
           <p className="text-slate-600">Here's your parking overview</p>
         </motion.div>

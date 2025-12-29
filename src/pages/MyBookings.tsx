@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Car, DollarSign, XCircle, Receipt } from 'lucide-react';
+import { Calendar, MapPin, Clock, Car, DollarSign, XCircle, Receipt, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { api, Booking } from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -10,7 +11,7 @@ import Modal from '../components/Modal';
 import { formatIndianCurrency } from '../utils/indianFormat';
 
 const MyBookings = () => {
-  const { profile } = useAuth();
+  // const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -80,7 +81,8 @@ const MyBookings = () => {
     return colors[status as keyof typeof colors] || 'bg-slate-100 text-slate-700';
   };
 
-  const getReceiptStatusBadge = (status: string) => {
+  /*
+  const _getReceiptStatusBadge = (status: string) => {
     const map: Record<string, string> = {
       paid: 'text-green-600 bg-green-100',
       pending: 'text-yellow-600 bg-yellow-100',
@@ -88,6 +90,81 @@ const MyBookings = () => {
       failed: 'text-red-600 bg-red-100',
     };
     return map[status] || 'text-slate-600 bg-slate-100';
+  };
+  */
+
+  const downloadReceiptPDF = (booking: Booking) => {
+    if (!booking.receipt) return;
+
+    const doc = new jsPDF();
+    const receipt = booking.receipt;
+
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(44, 62, 80); // Dark blue - Slate 800 approx
+    doc.text('ParkEasy Receipt', 105, 20, { align: 'center' });
+
+    // Parking Lot Details
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text(receipt.parking_lot_name, 20, 40);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(receipt.parking_lot_address, 20, 46);
+    if (receipt.parking_lot_contact) {
+      doc.text(`Contact: ${receipt.parking_lot_contact}`, 20, 52);
+    }
+
+    // Divider
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 60, 190, 60);
+
+    // Booking Details
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    let y = 75;
+    const lineHeight = 10;
+
+    doc.text(`Confirmation Number: ${receipt.confirmation_number}`, 20, y);
+    y += lineHeight;
+    doc.text(`Booking ID: ${receipt.booking_id}`, 20, y);
+    y += lineHeight * 1.5;
+
+    // Table-like structure for details
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(amount);
+    };
+
+    const details = [
+      ['Start Time', new Date(receipt.start_time).toLocaleString()],
+      ['End Time', new Date(receipt.end_time).toLocaleString()],
+      ['Duration', `${Math.ceil((new Date(receipt.end_time).getTime() - new Date(receipt.start_time).getTime()) / (1000 * 60 * 60))} hours`],
+      ['Vehicle', `${receipt.vehicle.license_plate} (${receipt.vehicle.make || ''} ${receipt.vehicle.model || ''})`],
+      ['Slot', `${receipt.slot.slot_number} ${receipt.slot.floor_level ? `(Level ${receipt.slot.floor_level})` : ''}`],
+      // ['Payment Status', booking.payment_status?.toUpperCase() || 'N/A'],
+      ['Total Amount', formatCurrency(booking.total_price)]
+    ];
+
+    details.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value!, 80, y);
+      y += lineHeight;
+    });
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Thank you for choosing ParkEasy!', 105, 280, { align: 'center' });
+
+    doc.save(`receipt-${booking.id}.pdf`);
   };
 
   const filteredBookings = bookings.filter((booking) => {
@@ -308,7 +385,15 @@ const MyBookings = () => {
                     <p className="text-lg font-semibold text-slate-900">
                       {selectedBooking.receipt.confirmation_number}
                     </p>
-                    <p className="text-sm text-slate-500">Booking ID: {selectedBooking.receipt.booking_id}</p>
+                    <p className="text-sm text-slate-500 mb-2">Booking ID: {selectedBooking.receipt.booking_id}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => selectedBooking && downloadReceiptPDF(selectedBooking)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </Button>
                   </div>
                 </div>
 
@@ -341,8 +426,7 @@ const MyBookings = () => {
                         <dd className="text-slate-900">
                           {selectedBooking.receipt.slot.slot_number}
                           {selectedBooking.receipt.slot.floor_level !== undefined &&
-                            selectedBooking.receipt.slot.floor_level !== null &&
-                            selectedBooking.receipt.slot.floor_level !== '' && (
+                            selectedBooking.receipt.slot.floor_level !== null && (
                               <span className="text-slate-500">
                                 {` Level ${selectedBooking.receipt.slot.floor_level}`}
                               </span>

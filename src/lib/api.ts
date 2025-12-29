@@ -12,6 +12,7 @@ export interface User {
   full_name: string;
   phone?: string;
   role: 'user' | 'admin';
+  is_verified: boolean;
   created_at: string;
 }
 
@@ -86,6 +87,8 @@ export interface BookingReceipt {
   total_price: number;
   created_at: string;
   qr_code?: string;
+  payment_method?: string;
+  payment_last4?: string;
 }
 
 export interface Booking {
@@ -140,9 +143,9 @@ class APIClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     if (this.token) {
@@ -481,6 +484,26 @@ class APIClient {
       }>;
       last_updated: string;
     }>('/api/admin/stats/realtime');
+  }
+
+  async getAnalytics(range: '7d' | '30d' | '1y' = '7d') {
+    return this.request<Array<{ date: string; revenue: number; bookings: number }>>(
+      `/api/admin/stats/analytics?range=${range}`
+    );
+  }
+
+  async verifyUser(userId: string, verify: boolean = true) {
+    return this.request<{ message: string }>(`/api/admin/users/${userId}/verify?verify=${verify}`, {
+      method: 'PUT',
+    });
+  }
+
+  // Payment endpoints (Dummy)
+  async processDummyPayment(amount: number, paymentMethod: string = 'upi') {
+    return this.request<{ success: boolean; transaction_id: string; message: string }>('/api/payments/process-dummy-payment', {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency: 'inr', payment_method: paymentMethod }),
+    });
   }
 }
 

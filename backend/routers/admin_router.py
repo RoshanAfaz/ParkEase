@@ -24,7 +24,7 @@ async def get_all_users(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Get all users with pagination and filtering."""
-    db = await get_database()
+    db = get_database()
     
     # Build query
     query = {}
@@ -71,7 +71,7 @@ async def get_user_details(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Get detailed information about a specific user."""
-    db = await get_database()
+    db = get_database()
     
     # Get user
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -131,7 +131,7 @@ async def create_user_by_admin(
     """Create a new user (admin only)."""
     from auth import get_password_hash
     
-    db = await get_database()
+    db = get_database()
     
     # Check if user already exists
     existing = await db.users.find_one({"email": user_data.email})
@@ -170,7 +170,7 @@ async def update_user_by_admin(
     """Update user information (admin only)."""
     from auth import get_password_hash
     
-    db = await get_database()
+    db = get_database()
     
     # Check if user exists
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -214,7 +214,7 @@ async def delete_user(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Delete a user (admin only)."""
-    db = await get_database()
+    db = get_database()
     
     # Check if user exists
     user = await db.users.find_one({"_id": ObjectId(user_id)})
@@ -249,7 +249,7 @@ async def create_parking_slot(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Create a new parking slot for a lot."""
-    db = await get_database()
+    db = get_database()
     
     # Check if lot exists
     lot = await db.parking_lots.find_one({"_id": ObjectId(lot_id)})
@@ -304,7 +304,7 @@ async def create_bulk_parking_slots(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Create multiple parking slots at once."""
-    db = await get_database()
+    db = get_database()
     
     # Check if lot exists
     lot = await db.parking_lots.find_one({"_id": ObjectId(lot_id)})
@@ -357,7 +357,7 @@ async def update_parking_slot(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Update a parking slot."""
-    db = await get_database()
+    db = get_database()
     
     # Check if slot exists
     slot = await db.parking_slots.find_one({"_id": ObjectId(slot_id)})
@@ -416,7 +416,7 @@ async def delete_parking_slot(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Delete a parking slot."""
-    db = await get_database()
+    db = get_database()
     
     # Check if slot exists
     slot = await db.parking_slots.find_one({"_id": ObjectId(slot_id)})
@@ -451,7 +451,7 @@ async def get_realtime_stats(
     current_user: TokenData = Depends(get_current_admin)
 ):
     """Get real-time statistics for admin dashboard."""
-    db = await get_database()
+    db = get_database()
     
     # Total users
     total_users = await db.users.count_documents({"role": "user"})
@@ -549,3 +549,80 @@ async def get_realtime_stats(
         "recent_activities": activities,
         "last_updated": datetime.utcnow().isoformat()
     }
+
+
+@router.get("/stats/analytics")
+async def get_analytics(
+    range: str = Query("7d", regex="^(7d|30d|1y)$"),
+    current_user: TokenData = Depends(get_current_admin)
+):
+    """Get historical analytics data for graphs."""
+    db = get_database()
+    from datetime import datetime, timedelta
+    
+    end_date = datetime.utcnow()
+    if range == "7d":
+        start_date = end_date - timedelta(days=7)
+    elif range == "30d":
+        start_date = end_date - timedelta(days=30)
+    else:
+        start_date = end_date - timedelta(days=365)
+    
+    # Revenue Analytics
+    revenue_pipeline = [
+        {
+            "$match": {
+                "payment_status": "paid",
+                "created_at": {"$gte": start_date, "$lte": end_date}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}
+                },
+                "revenue": {"$sum": "$total_price"},
+                "bookings": {"$sum": 1}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+    
+    analytics_data = await db.bookings.aggregate(revenue_pipeline).to_list(length=365)
+    
+    # Fill in missing dates
+    result = []
+    current_date = start_date
+    data_map = {item["_id"]: item for item in analytics_data}
+    
+    while current_date <= end_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+        item = data_map.get(date_str, {"revenue": 0, "bookings": 0})
+        result.append({
+            "date": date_str,
+            "revenue": item.get("revenue", 0),
+            "bookings": item.get("bookings", 0)
+        })
+        current_date += timedelta(days=1)
+        
+    return result
+
+
+@router.put("/users/{user_id}/verify")
+async def verify_user(
+    user_id: str,
+    verify: bool = True,
+    current_user: TokenData = Depends(get_current_admin)
+):
+    """Verify or unverify a user."""
+    db = get_database()
+    
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_verified": verify, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return {"message": f"User {'verified' if verify else 'unverified'} successfully"}

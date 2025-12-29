@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Car, MapPin, Clock, Shield, Zap, ArrowRight } from 'lucide-react';
 import Button from '../components/Button';
 
+import { ThemeToggle } from '../components/ThemeToggle';
+
 export default function Landing() {
   const features = [
     {
@@ -43,8 +45,8 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50">
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
@@ -60,6 +62,7 @@ export default function Landing() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <Link to="/login">
                 <Button variant="ghost" size="sm">
                   Sign In

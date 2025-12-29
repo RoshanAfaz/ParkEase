@@ -15,7 +15,8 @@ from routers import (
     vehicle_router,
     review_router,
     analytics_router,
-    admin_router
+    admin_router,
+    payment_router
 )
 
 # Configure logging
@@ -67,6 +68,7 @@ app.include_router(vehicle_router.router)
 app.include_router(review_router.router)
 app.include_router(analytics_router.router)
 app.include_router(admin_router.router)
+app.include_router(payment_router.router)
 
 
 @app.get("/")

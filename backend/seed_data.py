@@ -4,6 +4,7 @@ Run this after setting up the backend to get started quickly.
 """
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 from datetime import datetime, timedelta
 from auth import get_password_hash
 from config import settings
@@ -443,6 +444,87 @@ async def seed_database():
                 logger.info(f"✓ Vehicle created: {vehicle_data['license_plate']}")
             else:
                 logger.info(f"✓ Vehicle already exists: {vehicle_data['license_plate']}")
+    
+    # Create historical bookings for analytics (last 12 months)
+    import random
+    
+    logger.info("Generating historical bookings...")
+    
+    historical_bookings = []
+    statuses = ["completed", "cancelled", "completed", "completed", "completed"] # Higher weight for completed
+    
+    # Get all lot IDs and user IDs
+    all_lot_ids = lot_ids
+    all_user_ids = user_ids + [admin_id]
+    
+    # Randomly mark some users as verified
+    for uid in all_user_ids:
+        if random.random() > 0.5:
+            await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"is_verified": True}})
+    
+    start_date = datetime.utcnow() - timedelta(days=365)
+    
+    for _ in range(150): # Generate 150 bookings
+        # Random date within last year
+        booking_date = start_date + timedelta(days=random.randint(0, 365))
+        
+        # Random duration (1-5 hours)
+        duration_hours = random.randint(1, 5)
+        end_time = booking_date + timedelta(hours=duration_hours)
+        
+        # Random lot and user
+        lot_id = random.choice(all_lot_ids)
+        user_id = random.choice(all_user_ids)
+        
+        # Determine price (approx based on random lot price of 50)
+        total_price = duration_hours * 50
+        
+        status = random.choice(statuses)
+        payment_status = "paid" if status == "completed" else "failed"
+        if status == "cancelled":
+            payment_status = "refunded"
+            
+        booking = {
+            "user_id": user_id,
+            "lot_id": lot_id,
+            "slot_id": "dummy_slot_id", # Simplified for analytics
+            "vehicle_id": "dummy_vehicle_id",
+            "start_time": booking_date,
+            "end_time": end_time,
+            "status": status,
+            "total_price": total_price,
+            "payment_status": payment_status,
+            "created_at": booking_date,
+            "updated_at": booking_date
+        }
+        historical_bookings.append(booking)
+        
+    if historical_bookings:
+        await db.bookings.insert_many(historical_bookings)
+        logger.info(f"✓ Created {len(historical_bookings)} historical bookings")
+
+    # Create reviews
+    logger.info("Generating reviews...")
+    reviews = []
+    comments = [
+        "Great parking spot!", "Safe and secure.", "A bit expensive but worth it.", 
+        "Easy to find.", "Clean and well maintained.", "Validation process was smooth."
+    ]
+    
+    for _ in range(30):
+        review = {
+            "lot_id": random.choice(all_lot_ids),
+            "user_id": random.choice(all_user_ids),
+            "user_name": "Test User",
+            "rating": random.randint(3, 5),
+            "comment": random.choice(comments),
+            "created_at": datetime.utcnow() - timedelta(days=random.randint(0, 90))
+        }
+        reviews.append(review)
+        
+    if reviews:
+        await db.reviews.insert_many(reviews)
+        logger.info(f"✓ Created {len(reviews)} reviews")
     
     logger.info("\n" + "="*50)
     logger.info("Database seeding completed successfully!")
